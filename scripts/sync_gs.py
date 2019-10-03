@@ -33,7 +33,7 @@ def sync_gs(args):
     bucket = os.environ['SAC_GS_BUCKET']
 
     remote_gs_parts = [bucket, 'ray', 'results']
-    local_gs_parts = [os.path.expanduser('~/ray_results/gs/')]
+    local_gs_parts = [os.path.expanduser('/scr/annie/softlearning/ray_results/gs/')]
 
     if args.sync_path is not None:
         remote_gs_parts.append(args.sync_path)
