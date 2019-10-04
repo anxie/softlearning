@@ -28,6 +28,7 @@ class GaussianPolicy(LatentSpacePolicy):
                  **kwargs):
         self._Serializable__initialize(locals())
 
+        input_shapes['observations'] = tf.TensorShape(17 + 2) # hack
         self._input_shapes = input_shapes
         self._output_shape = output_shape
         self._squash = squash

@@ -63,6 +63,7 @@ class GymAdapter(SoftlearningEnv):
 
         self.normalize = normalize
         self.unwrap_time_limit = unwrap_time_limit
+        self.episode_step = 0
 
         super(GymAdapter, self).__init__(
             domain, task, *args, goal_keys=goal_keys, **kwargs)
@@ -126,10 +127,16 @@ class GymAdapter(SoftlearningEnv):
             observation = {DEFAULT_OBSERVATION_KEY: observation}
 
         observation = self._filter_observation(observation)
+
+        info['episode_step'] = self.episode_step
+        self.episode_step += 1
+
         return observation, reward, terminal, info
 
     def reset(self, *args, **kwargs):
         observation = self._env.reset()
+
+        self.episode_step = 0
 
         if not isinstance(self._env.observation_space, spaces.Dict):
             observation = {DEFAULT_OBSERVATION_KEY: observation}

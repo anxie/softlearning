@@ -7,7 +7,7 @@ import os
 def plot(result_dir='ray_results'):
 	paths = [os.path.join(dp, f) for dp, dn, fn in os.walk(os.path.expanduser(result_dir)) for f in fn if 'csv' in f]
 	rewards = []
-	for path in paths:
+	for path in paths[::-1]:
 		df = pd.read_csv(path, sep=',', engine='python', header=0)
 		plt.plot(df['training/episode-reward-mean'], label=path.split('/')[4])
 	plt.legend(loc='lower right')

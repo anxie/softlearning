@@ -9,6 +9,7 @@ from flatten_dict import flatten
 from softlearning.models.utils import flatten_input_structure
 from .rl_algorithm import RLAlgorithm
 
+from softlearning.models.feedforward import feedforward_model
 
 def td_target(reward, discount, next_value):
     return reward + discount * next_value
@@ -80,6 +81,7 @@ class SAC(RLAlgorithm):
         self._pool = pool
         self._plotter = plotter
 
+        self._encoder_lr = lr
         self._policy_lr = lr
         self._Q_lr = lr
 
@@ -100,18 +102,26 @@ class SAC(RLAlgorithm):
 
         self._build()
 
+        self.sess = tf.Session()
+        self.sess.run(tf.global_variables_initializer())
+
     def _build(self):
         super(SAC, self)._build()
 
+        self._init_encoder_update()
         self._init_actor_update()
         self._init_critic_update()
         self._init_diagnostics_ops()
 
     def _get_Q_target(self):
-        policy_inputs = flatten_input_structure({
+        observations = {
             name: self._placeholders['next_observations'][name]
             for name in self._policy.observation_keys
-        })
+        }
+        policy_inputs = flatten_input_structure(
+            {**observations, 'next_latents': self.next_latents})
+        policy_inputs = tf.concat(policy_inputs, axis=-1)
+
         next_actions = self._policy.actions(policy_inputs)
         next_log_pis = self._policy.log_pis(policy_inputs, next_actions)
 
@@ -185,10 +195,13 @@ class SAC(RLAlgorithm):
         and Section 5 in [1] for further information of the entropy update.
         """
 
-        policy_inputs = flatten_input_structure({
+        observations = {
             name: self._placeholders['observations'][name]
             for name in self._policy.observation_keys
-        })
+        }
+        policy_inputs = flatten_input_structure(
+            {**observations, 'latents': self.latents})
+        policy_inputs = tf.concat(policy_inputs, axis=-1)
         actions = self._policy.actions(policy_inputs)
         log_pis = self._policy.log_pis(policy_inputs, actions)
 
@@ -254,6 +267,53 @@ class SAC(RLAlgorithm):
             var_list=self._policy.trainable_variables)
 
         self._training_ops.update({'policy_train_op': policy_train_op})
+
+    def _init_encoder_update(self, latent_dim=2, hidden_layer_sizes=(64, 64)):
+        observations = {
+            name: self._placeholders['observations'][name]
+            for name in self._policy.observation_keys
+        }
+        next_observations = {
+            'next_{}'.format(name): self._placeholders['next_observations'][name]
+            for name in self._policy.observation_keys
+        }
+        encoder_inputs = flatten_input_structure({
+            **observations,
+            **next_observations,
+            'actions': self._placeholders['actions'],
+            'rewards': self._placeholders['rewards']})
+
+        encoder_inputs = tf.concat(encoder_inputs, axis=-1)
+
+        self.encoder_net = feedforward_model(
+            hidden_layer_sizes=hidden_layer_sizes,
+            output_size=2 * latent_dim)
+        params = self.encoder_net(encoder_inputs)
+        means = params[:, :latent_dim]
+        log_vars = params[:, latent_dim:]
+
+        self.latents = means + tf.random.normal(shape=tf.shape(means)) * tf.exp(log_vars)
+
+        with tf.variable_scope('prior_delta'):
+            self.delta = tf.get_variable('latent_dynamics', [latent_dim], initializer=tf.random_normal_initializer())
+        t = tf.cast(self._placeholders['episode_steps'], tf.float32)
+        prior_means = self.delta * t
+
+        self.next_latents = self.latents + self.delta
+
+        encoder_kl_losses = -log_vars + 0.5 * (tf.square(tf.exp(log_vars)) + tf.square(means - prior_means))
+        self._encoder_losses = encoder_kl_losses
+        encoder_loss = tf.reduce_mean(encoder_kl_losses)
+
+        self._encoder_optimizer = tf.compat.v1.train.AdamOptimizer(
+            learning_rate=self._encoder_lr,
+            name="encoder_optimizer")
+
+        encoder_train_op = self._encoder_optimizer.minimize(
+            loss=encoder_loss,
+            var_list=self.encoder_net.trainable_variables)
+
+        self._training_ops.update({'encoder_train_op': encoder_train_op})
 
     def _init_diagnostics_ops(self):
         diagnosables = OrderedDict((
@@ -330,13 +390,20 @@ class SAC(RLAlgorithm):
         # tensorflow `_DictWrapper`.
         diagnostics = self._session.run({**self._diagnostics_ops}, feed_dict)
 
+        observations = {
+            name: batch['observations'][name]
+            for name in self._policy.observation_keys
+        }
+        inputs = flatten_input_structure({
+            **observations,
+            'latents': self.sess.run(self.delta) * batch['episode_steps']
+        })
+        inputs = np.concatenate(inputs, axis=-1)
+
         diagnostics.update(OrderedDict([
             (f'policy/{key}', value)
             for key, value in
-            self._policy.get_diagnostics(flatten_input_structure({
-                name: batch['observations'][name]
-                for name in self._policy.observation_keys
-            })).items()
+            self._policy.get_diagnostics(inputs).items()
         ]))
 
         if self._plotter:

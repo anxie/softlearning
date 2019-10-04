@@ -1,5 +1,6 @@
 from collections import defaultdict
 
+import tensorflow as tf
 import numpy as np
 
 from softlearning import replay_pools
@@ -58,7 +59,9 @@ def rollout(env,
         min_pool_size=None,
         batch_size=None)
 
-    sampler.initialize(env, policy, pool)
+    with tf.variable_scope('prior_delta', reuse=True):
+        delta = tf.get_variable('latent_dynamics')
+    sampler.initialize(env, policy, pool, delta=delta)
 
     render_mode = (render_kwargs or {}).get('mode', None)
     if render_mode == 'rgb_array':

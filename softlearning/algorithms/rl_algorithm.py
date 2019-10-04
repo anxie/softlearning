@@ -149,6 +149,11 @@ class RLAlgorithm(Checkpointable):
                 shape=(None, 1),
                 name='terminals',
             ),
+            'episode_steps': tf.compat.v1.placeholder(
+                tf.int64,
+                shape=(None, 1),
+                name='episode_steps'
+            ),
             'iteration': tf.compat.v1.placeholder(
                 tf.int64, shape=(), name='iteration',
             ),
@@ -162,7 +167,7 @@ class RLAlgorithm(Checkpointable):
                 "Initial exploration policy must be provided when"
                 " n_initial_exploration_steps > 0.")
 
-        self.sampler.initialize(env, initial_exploration_policy, pool)
+        self.sampler.initialize(env, initial_exploration_policy, pool, delta=self.delta)
         while pool.size < self._n_initial_exploration_steps:
             self.sampler.sample()
 
@@ -230,7 +235,7 @@ class RLAlgorithm(Checkpointable):
             self._initial_exploration_hook(
                 training_environment, self._initial_exploration_policy, pool)
 
-        self.sampler.initialize(training_environment, policy, pool)
+        self.sampler.initialize(training_environment, policy, pool, delta=self.delta)
 
         gt.reset_root()
         gt.rename_root('RLAlgorithm')

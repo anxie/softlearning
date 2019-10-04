@@ -100,7 +100,7 @@ class LatentSpacePolicy(BasePolicy):
 
     def log_pis(self, observations, actions):
         assert not self._deterministic, self._deterministic
-        return self.log_pis_model([*observations, actions])
+        return self.log_pis_model([observations, actions])
 
     def actions_np(self, observations):
         if self._deterministic:

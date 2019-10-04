@@ -1,5 +1,6 @@
 from collections import defaultdict
 
+import tensorflow as tf
 import numpy as np
 from flatten_dict import flatten, unflatten
 
@@ -18,16 +19,22 @@ class SimpleSampler(BaseSampler):
         self._max_path_return = -np.inf
         self._n_episodes = 0
         self._current_observation = None
+        self._current_latent = None
         self._total_samples = 0
+
+        self.sess = tf.Session()
+        self._initialized_vars = False
 
     @property
     def _policy_input(self):
-        observation = flatten_input_structure({
+        observation = {
             key: self._current_observation[key][None, ...]
             for key in self.policy.observation_keys
-        })
-
-        return observation
+        }
+        policy_inputs = flatten_input_structure(
+            {**observation, 'latents': self._current_latent[None, ...]})
+        policy_inputs = np.concatenate(policy_inputs, axis=-1)
+        return policy_inputs
 
     def _process_sample(self,
                         observation,
@@ -42,14 +49,19 @@ class SimpleSampler(BaseSampler):
             'rewards': [reward],
             'terminals': [terminal],
             'next_observations': next_observation,
-            'infos': info,
+            # 'infos': info,
+            'episode_steps': [info['episode_step']],
         }
 
         return processed_observation
 
     def sample(self):
+        if not self._initialized_vars:
+            self.sess.run(tf.global_variables_initializer())
+            self._initialized_vars = True
         if self._current_observation is None:
             self._current_observation = self.env.reset()
+            self._current_latent = np.zeros(2)
 
         action = self.policy.actions_np(self._policy_input)[0]
 
@@ -91,6 +103,7 @@ class SimpleSampler(BaseSampler):
             self.policy.reset()
             self.pool.terminate_episode()
             self._current_observation = None
+            self._current_latent = None
             self._path_length = 0
             self._path_return = 0
             self._current_path = defaultdict(list)
@@ -98,6 +111,7 @@ class SimpleSampler(BaseSampler):
             self._n_episodes += 1
         else:
             self._current_observation = next_observation
+            self._current_latent = self._current_latent + self.sess.run(self.delta)
 
         return next_observation, reward, terminal, info
 
