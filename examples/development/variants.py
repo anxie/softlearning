@@ -92,6 +92,9 @@ MAX_PATH_LENGTH_PER_UNIVERSE_DOMAIN_TASK = {
         'Pendulum': {
             DEFAULT_KEY: 200,
         },
+        'HalfCheetah': {
+            DEFAULT_KEY: 50
+        },
     },
 }
 

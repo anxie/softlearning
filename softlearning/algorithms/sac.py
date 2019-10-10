@@ -309,7 +309,9 @@ class SAC(RLAlgorithm):
             learning_rate=self._encoder_lr,
             name="encoder_optimizer")
 
-        encoder_train_op = self._encoder_optimizer.minimize(encoder_loss)
+        encoder_train_op = self._encoder_optimizer.minimize(
+            encoder_loss,
+            var_list=self.encoder_net.trainable_variables + [self.delta])
 
         self._training_ops.update({'encoder_train_op': encoder_train_op})
 
