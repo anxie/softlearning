@@ -12,6 +12,7 @@ def create_feedforward_Q_function(input_shapes,
                                   observation_keys=None,
                                   name='feedforward_Q',
                                   **kwargs):
+    input_shapes['observations']['observations'] = tf.TensorShape(17 + 2) # hack
     inputs_flat = create_inputs(input_shapes)
     preprocessors_flat = (
         flatten_input_structure(preprocessors)

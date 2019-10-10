@@ -119,7 +119,7 @@ class SAC(RLAlgorithm):
             for name in self._policy.observation_keys
         }
         policy_inputs = flatten_input_structure(
-            {**observations, 'next_latents': self.next_latents})
+            {**observations, 'latents': self.next_latents})
         policy_inputs = tf.concat(policy_inputs, axis=-1)
 
         next_actions = self._policy.actions(policy_inputs)
@@ -129,8 +129,11 @@ class SAC(RLAlgorithm):
             name: self._placeholders['next_observations'][name]
             for name in self._Qs[0].observation_keys
         }
+        next_Q_observations = flatten_input_structure(
+            {**next_Q_observations, 'latents': self.next_latents})
+        next_Q_observations = tf.concat(next_Q_observations, axis=-1)
         next_Q_inputs = flatten_input_structure(
-            {**next_Q_observations, 'actions': next_actions})
+            {'observations': next_Q_observations, 'actions': next_actions})
         next_Qs_values = tuple(Q(next_Q_inputs) for Q in self._Q_targets)
 
         min_next_Q = tf.reduce_min(next_Qs_values, axis=0)
@@ -162,8 +165,11 @@ class SAC(RLAlgorithm):
             name: self._placeholders['observations'][name]
             for name in self._Qs[0].observation_keys
         }
+        Q_observations = flatten_input_structure(
+            {**Q_observations, 'latents': self.latents})
+        Q_observations = tf.concat(Q_observations, axis=-1)
         Q_inputs = flatten_input_structure({
-            **Q_observations, 'actions': self._placeholders['actions']})
+            'observations': Q_observations, 'actions': self._placeholders['actions']})
         Q_values = self._Q_values = tuple(Q(Q_inputs) for Q in self._Qs)
 
         Q_losses = self._Q_losses = tuple(
@@ -240,8 +246,11 @@ class SAC(RLAlgorithm):
             name: self._placeholders['observations'][name]
             for name in self._Qs[0].observation_keys
         }
+        Q_observations = flatten_input_structure(
+            {**Q_observations, 'latents': self.latents})
+        Q_observations = tf.concat(Q_observations, axis=-1)
         Q_inputs = flatten_input_structure({
-            **Q_observations, 'actions': actions})
+            'observations': Q_observations, 'actions': self._placeholders['actions']})
         Q_log_targets = tuple(Q(Q_inputs) for Q in self._Qs)
         min_Q_log_target = tf.reduce_min(Q_log_targets, axis=0)
 
@@ -280,8 +289,8 @@ class SAC(RLAlgorithm):
         encoder_inputs = flatten_input_structure({
             **observations,
             **next_observations,
-            'actions': self._placeholders['actions'],
-            'rewards': self._placeholders['rewards']})
+            'actions': self._placeholders['actions'],})
+            # 'rewards': self._placeholders['rewards']})
 
         encoder_inputs = tf.concat(encoder_inputs, axis=-1)
 
