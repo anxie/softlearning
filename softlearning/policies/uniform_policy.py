@@ -19,7 +19,6 @@ class UniformPolicy(BasePolicy):
 
         super(UniformPolicy, self).__init__(*args, **kwargs)
 
-        input_shapes['observations'] = tf.TensorShape(17 + 2) # hack
         inputs_flat = create_inputs(input_shapes)
 
         self.inputs = inputs_flat
