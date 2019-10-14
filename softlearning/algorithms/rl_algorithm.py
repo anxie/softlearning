@@ -149,11 +149,6 @@ class RLAlgorithm(Checkpointable):
                 shape=(None, 1),
                 name='terminals',
             ),
-            'episode_steps': tf.compat.v1.placeholder(
-                tf.int64,
-                shape=(None, 1),
-                name='episode_steps'
-            ),
             'iteration': tf.compat.v1.placeholder(
                 tf.int64, shape=(), name='iteration',
             ),

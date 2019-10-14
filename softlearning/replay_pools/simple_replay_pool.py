@@ -48,10 +48,6 @@ class SimpleReplayPool(FlexibleReplayPool):
                 name='terminals',
                 dtype='bool',
                 shape=(1, )),
-            'episode_steps': Field(
-                name='episode_steps',
-                dtype='int64',
-                shape=(1, )),
             **extra_fields
         }
 
