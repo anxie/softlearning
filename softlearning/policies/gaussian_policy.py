@@ -28,7 +28,9 @@ class GaussianPolicy(LatentSpacePolicy):
                  **kwargs):
         self._Serializable__initialize(locals())
 
-        input_shapes['observations'] = tf.TensorShape(17 + 2) # hack
+        if 'meta_time' in input_shapes:
+            input_shapes.pop('meta_time')
+            input_shapes['env_latents'] = tf.TensorShape(2)
         self._input_shapes = input_shapes
         self._output_shape = output_shape
         self._squash = squash

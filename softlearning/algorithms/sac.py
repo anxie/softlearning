@@ -116,8 +116,7 @@ class SAC(RLAlgorithm):
             for name in self._policy.observation_keys if name != 'meta_time'
         }
         policy_inputs = flatten_input_structure(
-            {**observations, 'latents': self.next_latents})
-        policy_inputs = tf.concat(policy_inputs, axis=-1)
+            {**observations, 'env_latents': self.next_latents})
 
         next_actions = self._policy.actions(policy_inputs)
         next_log_pis = self._policy.log_pis(policy_inputs, next_actions)
@@ -127,8 +126,7 @@ class SAC(RLAlgorithm):
             for name in self._Qs[0].observation_keys if name != 'meta_time'
         }
         next_Q_observations = flatten_input_structure(
-            {**next_Q_observations, 'latents': self.next_latents})
-        next_Q_observations = tf.concat(next_Q_observations, axis=-1)
+            {**next_Q_observations, 'env_latents': self.next_latents})
         next_Q_inputs = flatten_input_structure(
             {'observations': next_Q_observations, 'actions': next_actions})
         next_Qs_values = tuple(Q(next_Q_inputs) for Q in self._Q_targets)
@@ -163,8 +161,7 @@ class SAC(RLAlgorithm):
             for name in self._Qs[0].observation_keys if name != 'meta_time'
         }
         Q_observations = flatten_input_structure(
-            {**Q_observations, 'latents': self.latents})
-        Q_observations = tf.concat(Q_observations, axis=-1)
+            {**Q_observations, 'env_latents': self.latents})
         Q_inputs = flatten_input_structure({
             'observations': Q_observations, 'actions': self._placeholders['actions']})
         Q_values = self._Q_values = tuple(Q(Q_inputs) for Q in self._Qs)
@@ -203,8 +200,7 @@ class SAC(RLAlgorithm):
             for name in self._policy.observation_keys if name != 'meta_time'
         }
         policy_inputs = flatten_input_structure(
-            {**observations, 'latents': self.latents})
-        policy_inputs = tf.concat(policy_inputs, axis=-1)
+            {**observations, 'env_latents': self.latents})
         actions = self._policy.actions(policy_inputs)
         log_pis = self._policy.log_pis(policy_inputs, actions)
 
@@ -244,8 +240,7 @@ class SAC(RLAlgorithm):
             for name in self._Qs[0].observation_keys if name != 'meta_time'
         }
         Q_observations = flatten_input_structure(
-            {**Q_observations, 'latents': self.latents})
-        Q_observations = tf.concat(Q_observations, axis=-1)
+            {**Q_observations, 'env_latents': self.latents})
         Q_inputs = flatten_input_structure({
             'observations': Q_observations, 'actions': actions})
         Q_log_targets = tuple(Q(Q_inputs) for Q in self._Qs)
@@ -402,7 +397,7 @@ class SAC(RLAlgorithm):
         }
         inputs = flatten_input_structure({
             **observations,
-            'latents': self.sess.run(self.delta) * batch['observations']['meta_time']
+            'latents': self._session.run(self.delta) * batch['observations']['meta_time']
         })
         inputs = np.concatenate(inputs, axis=-1)
 

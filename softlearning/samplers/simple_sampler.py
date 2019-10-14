@@ -19,15 +19,21 @@ class SimpleSampler(BaseSampler):
         self._max_path_return = -np.inf
         self._n_episodes = 0
         self._current_observation = None
+        self._current_latent = None
         self._total_samples = 0
 
     @property
     def _policy_input(self):
-        observation = flatten_input_structure({
+        observation = {
             key: self._current_observation[key][None, ...]
-            for key in self.policy.observation_keys
+            for key in self.policy.observation_keys if key != 'meta_time'
+        }
+        policy_inputs = flatten_input_structure({
+            **observation,
+            'latents': self._current_latent[None, ...],
         })
-        return observation
+        policy_inputs = np.concatenate(policy_inputs, axis=-1)
+        return policy_inputs
 
     def _process_sample(self,
                         observation,
@@ -91,6 +97,8 @@ class SimpleSampler(BaseSampler):
             self.policy.reset()
             self.pool.terminate_episode()
             self._current_observation = None
+            import pdb; pdb.set_trace()
+            self._current_latent = None
             self._path_length = 0
             self._path_return = 0
             self._current_path = defaultdict(list)

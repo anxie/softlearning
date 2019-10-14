@@ -52,7 +52,7 @@ class ExperimentRunner(tune.Trainable):
 
         replay_pool = self.replay_pool = (
             get_replay_pool_from_variant(variant, training_environment))
-        sampler = self.sampler = get_sampler_from_variant(variant)
+        sampler = self.sampler = get_sampler_from_variant(variant, session=self._session)
         Qs = self.Qs = get_Q_function_from_variant(
             variant, training_environment)
         policy = self.policy = get_policy_from_variant(
