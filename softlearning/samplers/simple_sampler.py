@@ -22,9 +22,6 @@ class SimpleSampler(BaseSampler):
         self._current_latent = None
         self._total_samples = 0
 
-        self.sess = tf.Session()
-        self._initialized_vars = False
-
     @property
     def _policy_input(self):
         observation = {
@@ -49,8 +46,7 @@ class SimpleSampler(BaseSampler):
             'rewards': [reward],
             'terminals': [terminal],
             'next_observations': next_observation,
-            # 'infos': info,
-            'episode_steps': [info['episode_step']],
+            'infos': info,
         }
 
         return processed_observation

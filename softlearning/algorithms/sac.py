@@ -102,9 +102,6 @@ class SAC(RLAlgorithm):
 
         self._build()
 
-        self.sess = tf.Session()
-        self.sess.run(tf.global_variables_initializer())
-
     def _build(self):
         super(SAC, self)._build()
 
