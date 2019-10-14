@@ -113,7 +113,7 @@ class SAC(RLAlgorithm):
     def _get_Q_target(self):
         observations = {
             name: self._placeholders['next_observations'][name]
-            for name in self._policy.observation_keys
+            for name in self._policy.observation_keys if name != 'meta_time'
         }
         policy_inputs = flatten_input_structure(
             {**observations, 'latents': self.next_latents})
@@ -124,7 +124,7 @@ class SAC(RLAlgorithm):
 
         next_Q_observations = {
             name: self._placeholders['next_observations'][name]
-            for name in self._Qs[0].observation_keys
+            for name in self._Qs[0].observation_keys if name != 'meta_time'
         }
         next_Q_observations = flatten_input_structure(
             {**next_Q_observations, 'latents': self.next_latents})
@@ -160,7 +160,7 @@ class SAC(RLAlgorithm):
 
         Q_observations = {
             name: self._placeholders['observations'][name]
-            for name in self._Qs[0].observation_keys
+            for name in self._Qs[0].observation_keys if name != 'meta_time'
         }
         Q_observations = flatten_input_structure(
             {**Q_observations, 'latents': self.latents})
@@ -200,7 +200,7 @@ class SAC(RLAlgorithm):
 
         observations = {
             name: self._placeholders['observations'][name]
-            for name in self._policy.observation_keys
+            for name in self._policy.observation_keys if name != 'meta_time'
         }
         policy_inputs = flatten_input_structure(
             {**observations, 'latents': self.latents})
@@ -241,7 +241,7 @@ class SAC(RLAlgorithm):
 
         Q_observations = {
             name: self._placeholders['observations'][name]
-            for name in self._Qs[0].observation_keys
+            for name in self._Qs[0].observation_keys if name != 'meta_time'
         }
         Q_observations = flatten_input_structure(
             {**Q_observations, 'latents': self.latents})
@@ -277,17 +277,17 @@ class SAC(RLAlgorithm):
     def _init_encoder_update(self, latent_dim=2, hidden_layer_sizes=(64, 64)):
         observations = {
             name: self._placeholders['observations'][name]
-            for name in self._policy.observation_keys
+            for name in self._policy.observation_keys if name != 'meta_time'
         }
         next_observations = {
             'next_{}'.format(name): self._placeholders['next_observations'][name]
-            for name in self._policy.observation_keys
+            for name in self._policy.observation_keys if name != 'meta_time'
         }
         encoder_inputs = flatten_input_structure({
             **observations,
             **next_observations,
-            'actions': self._placeholders['actions'],})
-            # 'rewards': self._placeholders['rewards']})
+            'actions': self._placeholders['actions'],
+            'rewards': self._placeholders['rewards']})
 
         encoder_inputs = tf.concat(encoder_inputs, axis=-1)
 
@@ -302,7 +302,7 @@ class SAC(RLAlgorithm):
 
         with tf.variable_scope('prior_delta'):
             self.delta = tf.get_variable('latent_dynamics', [latent_dim], initializer=tf.random_normal_initializer())
-        t = tf.cast(self._placeholders['episode_steps'], tf.float32)
+        t = tf.cast(self._placeholders['observations']['meta_time'], tf.float32)
         prior_means = self.delta * t
 
         self.next_latents = self.latents + self.delta
@@ -398,11 +398,11 @@ class SAC(RLAlgorithm):
 
         observations = {
             name: batch['observations'][name]
-            for name in self._policy.observation_keys
+            for name in self._policy.observation_keys if name != 'meta_time'
         }
         inputs = flatten_input_structure({
             **observations,
-            'latents': self.sess.run(self.delta) * batch['episode_steps']
+            'latents': self.sess.run(self.delta) * batch['observations']['meta_time']
         })
         inputs = np.concatenate(inputs, axis=-1)
 
