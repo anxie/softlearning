@@ -93,7 +93,7 @@ MAX_PATH_LENGTH_PER_UNIVERSE_DOMAIN_TASK = {
             DEFAULT_KEY: 200,
         },
         'HalfCheetah': {
-            DEFAULT_KEY: 50
+            DEFAULT_KEY: 50,
         },
     },
 }
@@ -215,7 +215,8 @@ ENVIRONMENT_PARAMS_PER_UNIVERSE_DOMAIN_TASK = {
         },
         'Point2DEnv': {
             'Default-v0': {
-                'observation_keys': ('observation', 'desired_goal'),
+                # 'observation_keys': ('observation', 'desired_goal'),
+                'observation_keys': ('observation', 'meta_time'),
             },
             'Wall-v0': {
                 'observation_keys': ('observation', 'desired_goal'),
