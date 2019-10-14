@@ -19,19 +19,15 @@ class SimpleSampler(BaseSampler):
         self._max_path_return = -np.inf
         self._n_episodes = 0
         self._current_observation = None
-        self._current_latent = None
         self._total_samples = 0
 
     @property
     def _policy_input(self):
-        observation = {
+        observation = flatten_input_structure({
             key: self._current_observation[key][None, ...]
             for key in self.policy.observation_keys
-        }
-        policy_inputs = flatten_input_structure(
-            {**observation, 'latents': self._current_latent[None, ...]})
-        policy_inputs = np.concatenate(policy_inputs, axis=-1)
-        return policy_inputs
+        })
+        return observation
 
     def _process_sample(self,
                         observation,

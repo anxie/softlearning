@@ -162,7 +162,7 @@ class RLAlgorithm(Checkpointable):
                 "Initial exploration policy must be provided when"
                 " n_initial_exploration_steps > 0.")
 
-        self.sampler.initialize(env, initial_exploration_policy, pool, delta=self.delta)
+        self.sampler.initialize(env, initial_exploration_policy, pool)
         while pool.size < self._n_initial_exploration_steps:
             self.sampler.sample()
 
@@ -230,7 +230,7 @@ class RLAlgorithm(Checkpointable):
             self._initial_exploration_hook(
                 training_environment, self._initial_exploration_policy, pool)
 
-        self.sampler.initialize(training_environment, policy, pool, delta=self.delta)
+        self.sampler.initialize(training_environment, policy, pool)
 
         gt.reset_root()
         gt.rename_root('RLAlgorithm')

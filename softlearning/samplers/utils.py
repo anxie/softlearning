@@ -59,9 +59,7 @@ def rollout(env,
         min_pool_size=None,
         batch_size=None)
 
-    with tf.variable_scope('prior_delta', reuse=True):
-        delta = tf.get_variable('latent_dynamics')
-    sampler.initialize(env, policy, pool, delta=delta)
+    sampler.initialize(env, policy, pool)
 
     render_mode = (render_kwargs or {}).get('mode', None)
     if render_mode == 'rgb_array':

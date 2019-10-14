@@ -17,13 +17,11 @@ class BaseSampler(object):
         self.env = None
         self.policy = None
         self.pool = None
-        self.delta = None
 
-    def initialize(self, env, policy, pool, delta=None):
+    def initialize(self, env, policy, pool):
         self.env = env
         self.policy = policy
         self.pool = pool
-        self.delta = delta
 
     def set_policy(self, policy):
         self.policy = policy
