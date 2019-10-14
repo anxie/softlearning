@@ -247,7 +247,7 @@ class SAC(RLAlgorithm):
             {**Q_observations, 'latents': self.latents})
         Q_observations = tf.concat(Q_observations, axis=-1)
         Q_inputs = flatten_input_structure({
-            'observations': Q_observations, 'actions': self._placeholders['actions']})
+            'observations': Q_observations, 'actions': actions})
         Q_log_targets = tuple(Q(Q_inputs) for Q in self._Qs)
         min_Q_log_target = tf.reduce_min(Q_log_targets, axis=0)
 
