@@ -52,12 +52,8 @@ class SimpleSampler(BaseSampler):
         return processed_observation
 
     def sample(self):
-        if not self._initialized_vars:
-            self.sess.run(tf.global_variables_initializer())
-            self._initialized_vars = True
         if self._current_observation is None:
             self._current_observation = self.env.reset()
-            self._current_latent = np.zeros(2)
 
         action = self.policy.actions_np(self._policy_input)[0]
 
@@ -99,7 +95,6 @@ class SimpleSampler(BaseSampler):
             self.policy.reset()
             self.pool.terminate_episode()
             self._current_observation = None
-            self._current_latent = None
             self._path_length = 0
             self._path_return = 0
             self._current_path = defaultdict(list)
@@ -107,7 +102,6 @@ class SimpleSampler(BaseSampler):
             self._n_episodes += 1
         else:
             self._current_observation = next_observation
-            self._current_latent = self._current_latent + self.sess.run(self.delta)
 
         return next_observation, reward, terminal, info
 
