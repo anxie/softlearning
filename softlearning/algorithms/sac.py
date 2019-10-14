@@ -295,8 +295,10 @@ class SAC(RLAlgorithm):
 
         self.latents = means + tf.random.normal(shape=tf.shape(means)) * tf.exp(log_vars)
 
-        with tf.variable_scope('prior_delta'):
-            self.delta = tf.get_variable('latent_dynamics', [latent_dim], initializer=tf.random_normal_initializer())
+        with tf.variable_scope('latent_dynamics'):
+            self.delta = tf.get_variable('delta_prior',
+                                         [latent_dim],
+                                         initializer=tf.random_normal_initializer())
         t = tf.cast(self._placeholders['observations']['meta_time'], tf.float32)
         prior_means = self.delta * t
 
@@ -397,14 +399,17 @@ class SAC(RLAlgorithm):
         }
         inputs = flatten_input_structure({
             **observations,
-            'latents': self._session.run(self.delta) * batch['observations']['meta_time']
+            'env_latents': self._session.run(self.delta) * batch['observations']['meta_time']
         })
-        inputs = np.concatenate(inputs, axis=-1)
 
         diagnostics.update(OrderedDict([
             (f'policy/{key}', value)
             for key, value in
             self._policy.get_diagnostics(inputs).items()
+        ]))
+
+        diagnostics.update(OrderedDict([
+            ('current_delta', self._session.run(self.delta))
         ]))
 
         if self._plotter:

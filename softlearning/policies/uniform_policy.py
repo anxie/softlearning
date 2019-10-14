@@ -19,6 +19,9 @@ class UniformPolicy(BasePolicy):
 
         super(UniformPolicy, self).__init__(*args, **kwargs)
 
+        if 'meta_time' in input_shapes:
+            input_shapes.pop('meta_time')
+            input_shapes['env_latents'] = tf.TensorShape(2)
         inputs_flat = create_inputs(input_shapes)
 
         self.inputs = inputs_flat

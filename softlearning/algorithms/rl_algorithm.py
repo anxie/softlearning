@@ -340,6 +340,7 @@ class RLAlgorithm(Checkpointable):
                 evaluation_env,
                 policy,
                 self.sampler._max_path_length,
+                session=self._session,
                 render_kwargs=self._eval_render_kwargs)
 
         should_save_video = (

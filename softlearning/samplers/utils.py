@@ -49,6 +49,7 @@ DEFAULT_HUMAN_RENDER_KWARGS = {
 def rollout(env,
             policy,
             path_length,
+            session=None,
             sampler_class=simple_sampler.SimpleSampler,
             callback=None,
             render_kwargs=None,
@@ -57,7 +58,8 @@ def rollout(env,
     sampler = sampler_class(
         max_path_length=path_length,
         min_pool_size=None,
-        batch_size=None)
+        batch_size=None,
+        session=session)
 
     sampler.initialize(env, policy, pool)
 
