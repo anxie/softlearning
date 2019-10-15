@@ -296,13 +296,18 @@ class SAC(RLAlgorithm):
         self.latents = means + tf.random.normal(shape=tf.shape(means)) * tf.exp(log_vars)
 
         with tf.variable_scope('latent_dynamics'):
-            self.delta = tf.get_variable('delta_prior',
-                                         [latent_dim],
-                                         initializer=tf.random_normal_initializer())
-        t = tf.cast(self._placeholders['observations']['meta_time'], tf.float32)
-        prior_means = self.delta * t
+            # self.delta = tf.get_variable('delta_prior',
+            #                              [latent_dim],
+            #                              initializer=tf.random_normal_initializer())
+            self.delta = tf.constant(1.0, name='delta_prior')
 
-        self.next_latents = self.latents + self.delta
+        t = tf.cast(self._placeholders['observations']['meta_time'], tf.float32)
+        theta = self.delta * t
+        R = tf.concat([tf.cos(theta), -tf.sin(theta), tf.sin(theta), tf.cos(theta)], axis=-1)
+        R = tf.reshape(R, [-1, 2, 2])
+
+        prior_means = tf.linalg.matvec(R, tf.tile(tf.expand_dims(tf.constant([1., 0.]), axis=0), [tf.shape(t)[0], 1]))
+        self.next_latents = tf.linalg.matvec(R, self.latents)
 
         encoder_kl_losses = -log_vars + 0.5 * (tf.square(tf.exp(log_vars)) + tf.square(means - prior_means))
         self._encoder_losses = encoder_kl_losses
@@ -314,7 +319,7 @@ class SAC(RLAlgorithm):
 
         encoder_train_op = self._encoder_optimizer.minimize(
             encoder_loss,
-            var_list=self.encoder_net.trainable_variables + [self.delta])
+            var_list=self.encoder_net.trainable_variables)
 
         self._training_ops.update({'encoder_train_op': encoder_train_op})
 
@@ -397,9 +402,12 @@ class SAC(RLAlgorithm):
             name: batch['observations'][name]
             for name in self._policy.observation_keys if name != 'meta_time'
         }
+        t = batch['observations']['meta_time']
+        R = np.concatenate([np.cos(t), -np.sin(t), np.sin(t), np.cos(t)], axis=-1)
+        R = R.reshape((-1, 2, 2))
         inputs = flatten_input_structure({
             **observations,
-            'env_latents': self._session.run(self.delta) * batch['observations']['meta_time']
+            'env_latents': np.matmul(R, np.array([0.1, 0.0]))
         })
 
         diagnostics.update(OrderedDict([
