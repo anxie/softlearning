@@ -308,8 +308,8 @@ class SAC(RLAlgorithm):
 
         # self.latents = prior_means = tf.linalg.matvec(R, tf.tile(tf.expand_dims(tf.constant([0.1,0.0]), axis=0), [tf.shape(t)[0], 1]))
         # self.next_latents = tf.linalg.matvec(R, self.latents)
-        self.latents = tf.concat([0.1*tf.cos(2 * np.pi * t / 4000.), 0.1*tf.sin(2 * np.pi * t / 4000.)], axis=-1)
-        self.next_latents = tf.concat([0.1*tf.cos(2 * np.pi * (t+1) / 4000.), 0.1*tf.sin(2 * np.pi * (t+1) / 4000.)], axis=-1)
+        self.latents = tf.concat([0.1*tf.cos(t), 0.1*tf.sin(t)], axis=-1)
+        self.next_latents = tf.concat([0.1*tf.cos(t+1), 0.1*tf.sin(t+1)], axis=-1)
 
         # encoder_kl_losses = -log_vars + 0.5 * (tf.square(tf.exp(log_vars)) + tf.square(means - prior_means))
         # self._encoder_losses = encoder_kl_losses
@@ -410,7 +410,7 @@ class SAC(RLAlgorithm):
         # R = R.reshape((-1, 2, 2))
         inputs = flatten_input_structure({
             **observations,
-            'env_latents': np.concatenate([0.1 * np.cos(2*np.pi * t / 4000.), 0.1 * np.sin(2*np.pi * t / 4000.)], axis=-1)#np.matmul(R, np.array([0.1,0.0]))
+            'env_latents': np.concatenate([0.1 * np.cos(t), 0.1 * np.sin(t)], axis=-1)#np.matmul(R, np.array([0.1,0.0]))
         })
 
         diagnostics.update(OrderedDict([

@@ -104,8 +104,9 @@ class SimpleSampler(BaseSampler):
             # delta = 2*np.pi/4000. #self._session.run('latent_dynamics/delta_prior:0')
             # theta = self._n_episodes * delta
             # R = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
-            self._current_latent = np.array([0.1 * np.cos(self._n_episodes * 2*np.pi/4000.),
-                                             0.1 * np.sin(self._n_episodes * 2*np.pi/4000.)]) #np.matmul(R, np.array([0.1, 0.0]))  #delta * self._n_episodes
+            self._current_latent = np.array([0.1 * np.cos(self._n_episodes),
+                                             0.1 * np.sin(self._n_episodes)])
+                                             #np.matmul(R, np.array([0.1, 0.0]))  #delta * self._n_episodes
         else:
             self._current_observation = next_observation
 
