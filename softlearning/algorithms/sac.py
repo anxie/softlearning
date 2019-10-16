@@ -299,29 +299,31 @@ class SAC(RLAlgorithm):
             # self.delta = tf.get_variable('delta_prior',
             #                              [latent_dim],
             #                              initializer=tf.random_normal_initializer())
-            self.delta = tf.constant(1.0, name='delta_prior')
+            self.delta = tf.constant(2*np.pi/4000., name='delta_prior')
 
         t = tf.cast(self._placeholders['observations']['meta_time'], tf.float32)
-        theta = self.delta * t
-        R = tf.concat([tf.cos(theta), -tf.sin(theta), tf.sin(theta), tf.cos(theta)], axis=-1)
-        R = tf.reshape(R, [-1, 2, 2])
+        # theta = self.delta * t
+        # R = tf.concat([tf.cos(theta), -tf.sin(theta), tf.sin(theta), tf.cos(theta)], axis=-1)
+        # R = tf.reshape(R, [-1, 2, 2])
 
-        prior_means = tf.linalg.matvec(R, tf.tile(tf.expand_dims(tf.constant([1., 0.]), axis=0), [tf.shape(t)[0], 1]))
-        self.next_latents = tf.linalg.matvec(R, self.latents)
+        # self.latents = prior_means = tf.linalg.matvec(R, tf.tile(tf.expand_dims(tf.constant([0.1,0.0]), axis=0), [tf.shape(t)[0], 1]))
+        # self.next_latents = tf.linalg.matvec(R, self.latents)
+        self.latents = tf.concat([0.1*tf.cos(2 * np.pi * t / 4000.), 0.1*tf.sin(2 * np.pi * t / 4000.)], axis=-1)
+        self.next_latents = tf.concat([0.1*tf.cos(2 * np.pi * (t+1) / 4000.), 0.1*tf.sin(2 * np.pi * (t+1) / 4000.)], axis=-1)
 
-        encoder_kl_losses = -log_vars + 0.5 * (tf.square(tf.exp(log_vars)) + tf.square(means - prior_means))
-        self._encoder_losses = encoder_kl_losses
-        encoder_loss = tf.reduce_mean(encoder_kl_losses)
+        # encoder_kl_losses = -log_vars + 0.5 * (tf.square(tf.exp(log_vars)) + tf.square(means - prior_means))
+        # self._encoder_losses = encoder_kl_losses
+        # encoder_loss = tf.reduce_mean(encoder_kl_losses)
 
-        self._encoder_optimizer = tf.compat.v1.train.AdamOptimizer(
-            learning_rate=self._encoder_lr,
-            name="encoder_optimizer")
+        # self._encoder_optimizer = tf.compat.v1.train.AdamOptimizer(
+        #     learning_rate=self._encoder_lr,
+        #     name="encoder_optimizer")
 
-        encoder_train_op = self._encoder_optimizer.minimize(
-            encoder_loss,
-            var_list=self.encoder_net.trainable_variables)
+        # encoder_train_op = self._encoder_optimizer.minimize(
+        #     encoder_loss,
+        #     var_list=self.encoder_net.trainable_variables)
 
-        self._training_ops.update({'encoder_train_op': encoder_train_op})
+        # self._training_ops.update({'encoder_train_op': encoder_train_op})
 
     def _init_diagnostics_ops(self):
         diagnosables = OrderedDict((
@@ -403,11 +405,12 @@ class SAC(RLAlgorithm):
             for name in self._policy.observation_keys if name != 'meta_time'
         }
         t = batch['observations']['meta_time']
-        R = np.concatenate([np.cos(t), -np.sin(t), np.sin(t), np.cos(t)], axis=-1)
-        R = R.reshape((-1, 2, 2))
+        # theta = t * 2*np.pi/4000.
+        # R = np.concatenate([np.cos(theta), -np.sin(theta), np.sin(theta), np.cos(theta)], axis=-1)
+        # R = R.reshape((-1, 2, 2))
         inputs = flatten_input_structure({
             **observations,
-            'env_latents': np.matmul(R, np.array([0.1, 0.0]))
+            'env_latents': np.concatenate([0.1 * np.cos(2*np.pi * t / 4000.), 0.1 * np.sin(2*np.pi * t / 4000.)], axis=-1)#np.matmul(R, np.array([0.1,0.0]))
         })
 
         diagnostics.update(OrderedDict([
