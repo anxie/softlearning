@@ -81,7 +81,7 @@ class SAC(RLAlgorithm):
         self._pool = pool
         self._plotter = plotter
 
-        self._encoder_lr = lr
+        self._encoder_lr = 0.005
         self._policy_lr = lr
         self._Q_lr = lr
 
@@ -269,7 +269,7 @@ class SAC(RLAlgorithm):
 
         self._training_ops.update({'policy_train_op': policy_train_op})
 
-    def _init_encoder_update(self, latent_dim=2, hidden_layer_sizes=(64, 64)):
+    def _init_encoder_update(self, latent_dim=2, hidden_layer_sizes=(32, 32)):
         observations = {
             name: self._placeholders['observations'][name]
             for name in self._policy.observation_keys if name != 'meta_time'
@@ -286,51 +286,78 @@ class SAC(RLAlgorithm):
 
         encoder_inputs = tf.concat(encoder_inputs, axis=-1)
 
+        # self.encoder_net = feedforward_model(
+        #     hidden_layer_sizes=hidden_layer_sizes,
+        #     output_size=2 * latent_dim)
+        # params = self.encoder_net(encoder_inputs)
+        # means = params[:, :latent_dim]
+        # log_vars = params[:, latent_dim:]
+
+        # self.latents = means + tf.random.normal(shape=tf.shape(means)) * tf.exp(log_vars)
+
         self.encoder_net = feedforward_model(
             hidden_layer_sizes=hidden_layer_sizes,
-            output_size=2 * latent_dim)
-        params = self.encoder_net(encoder_inputs)
-        means = params[:, :latent_dim]
-        log_vars = params[:, latent_dim:]
+            output_size=latent_dim)
+        self.latents = means = self.encoder_net(encoder_inputs)
 
-        self.latents = means + tf.random.normal(shape=tf.shape(means)) * tf.exp(log_vars)
+        with tf.variable_scope('latent'):
+            # self.dynamics_prior = tf.get_variable('dynamics_prior',
+            #                              [latent_dim, latent_dim],
+            #                              initializer=tf.random_normal_initializer(),
+            #                              dtype=tf.float32)
+            cos_prior = tf.get_variable('cos_prior', initializer=tf.constant(0.9))
+            sin_prior = tf.sqrt(1 - tf.square(cos_prior))
+            self.dynamics_prior = tf.stack([[cos_prior, -sin_prior], [sin_prior, cos_prior]],
+                name='dynamics_prior')
 
-        with tf.variable_scope('latent_dynamics'):
-            # self.delta = tf.get_variable('delta_prior',
-            #                              [latent_dim],
-            #                              initializer=tf.random_normal_initializer())
-            self.delta = tf.constant(2*np.pi/4000., name='delta_prior')
+        ts = tf.squeeze(tf.cast(self._placeholders['observations']['meta_time'], tf.int64))
 
-        t = tf.cast(self._placeholders['observations']['meta_time'], tf.float32)
-        # theta = self.delta * t
-        # R = tf.concat([tf.cos(theta), -tf.sin(theta), tf.sin(theta), tf.cos(theta)], axis=-1)
-        # R = tf.reshape(R, [-1, 2, 2])
+        curr_A = tf.eye(latent_dim)
+        As = [tf.eye(latent_dim)]
+        for _ in range(1, 4000):
+            curr_A = tf.linalg.matmul(curr_A, self.dynamics_prior)
+            As.append(curr_A)
+        As = tf.stack(As)
 
-        # self.latents = prior_means = tf.linalg.matvec(R, tf.tile(tf.expand_dims(tf.constant([0.1,0.0]), axis=0), [tf.shape(t)[0], 1]))
-        # self.next_latents = tf.linalg.matvec(R, self.latents)
-        self.latents = tf.concat([0.1*tf.cos(t), 0.1*tf.sin(t)], axis=-1)
-        self.next_latents = tf.concat([0.1*tf.cos(t+1), 0.1*tf.sin(t+1)], axis=-1)
+        # self.dynamics_prior = np.array([[np.cos(0.005), -np.sin(0.005)],
+        #                                 [np.sin(0.005), np.cos(0.005)]], 
+        #                                dtype=np.float32)
+        # curr_A = np.eye(latent_dim)
+        # As = [curr_A]
+        # for _ in range(1, 4000):
+        #     curr_A = np.matmul(curr_A, self.dynamics_prior)
+        #     As.append(curr_A)
+        # As = np.array(As, dtype=np.float32)
 
-        # encoder_kl_losses = -log_vars + 0.5 * (tf.square(tf.exp(log_vars)) + tf.square(means - prior_means))
-        # self._encoder_losses = encoder_kl_losses
-        # encoder_loss = tf.reduce_mean(encoder_kl_losses)
+        At = tf.gather(As, ts, axis=0)
+        z0 = tf.tile(np.expand_dims(np.array([0.1, 0.0], dtype=np.float32), axis=0), [tf.shape(ts)[0], 1])
+        latent_prior = tf.linalg.matvec(At, z0)
 
-        # self._encoder_optimizer = tf.compat.v1.train.AdamOptimizer(
-        #     learning_rate=self._encoder_lr,
-        #     name="encoder_optimizer")
+        tiled_dynamics_prior = tf.tile(tf.expand_dims(self.dynamics_prior, axis=0), [tf.shape(ts)[0], 1, 1])
+        self.next_latents = tf.linalg.matvec(tiled_dynamics_prior, self.latents)
 
-        # encoder_train_op = self._encoder_optimizer.minimize(
-        #     encoder_loss,
-        #     var_list=self.encoder_net.trainable_variables)
+        # encoder_kl_losses = -log_vars + 0.5 * (tf.square(tf.exp(log_vars)) + tf.square(means - latent_prior))
+        encoder_kl_losses = tf.square(means - latent_prior)
+        self._encoder_losses = encoder_kl_losses
+        encoder_loss = tf.reduce_mean(encoder_kl_losses)
 
-        # self._training_ops.update({'encoder_train_op': encoder_train_op})
+        self._encoder_optimizer = tf.compat.v1.train.AdamOptimizer(
+            learning_rate=self._encoder_lr,
+            name="encoder_optimizer")
+
+        encoder_train_op = self._encoder_optimizer.minimize(
+            encoder_loss,
+            var_list=self.encoder_net.trainable_variables + [cos_prior])
+
+        self._training_ops.update({'encoder_train_op': encoder_train_op})
 
     def _init_diagnostics_ops(self):
         diagnosables = OrderedDict((
             ('Q_value', self._Q_values),
             ('Q_loss', self._Q_losses),
             ('policy_loss', self._policy_losses),
-            ('alpha', self._alpha)
+            ('alpha', self._alpha),
+            ('encoder_loss', self._encoder_losses),
         ))
 
         diagnostic_metrics = OrderedDict((
@@ -404,13 +431,11 @@ class SAC(RLAlgorithm):
             name: batch['observations'][name]
             for name in self._policy.observation_keys if name != 'meta_time'
         }
-        t = batch['observations']['meta_time']
-        # theta = t * 2*np.pi/4000.
-        # R = np.concatenate([np.cos(theta), -np.sin(theta), np.sin(theta), np.cos(theta)], axis=-1)
-        # R = R.reshape((-1, 2, 2))
+        ts = np.squeeze(batch['observations']['meta_time']).astype(np.int64)
+        A = self._session.run(self.dynamics_prior)
         inputs = flatten_input_structure({
             **observations,
-            'env_latents': np.concatenate([0.1 * np.cos(t), 0.1 * np.sin(t)], axis=-1)#np.matmul(R, np.array([0.1,0.0]))
+            'env_latents': np.array([np.linalg.matrix_power(A, t).dot(np.array([0.1, 0.0])) for t in ts])
         })
 
         diagnostics.update(OrderedDict([
@@ -420,7 +445,7 @@ class SAC(RLAlgorithm):
         ]))
 
         diagnostics.update(OrderedDict([
-            ('current_delta', self._session.run(self.delta))
+            ('dynamics_prior', A)
         ]))
 
         if self._plotter:

@@ -101,12 +101,11 @@ class SimpleSampler(BaseSampler):
             self._current_path = defaultdict(list)
 
             self._n_episodes += 1
-            # delta = 2*np.pi/4000. #self._session.run('latent_dynamics/delta_prior:0')
-            # theta = self._n_episodes * delta
-            # R = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
-            self._current_latent = np.array([0.1 * np.cos(self._n_episodes),
-                                             0.1 * np.sin(self._n_episodes)])
-                                             #np.matmul(R, np.array([0.1, 0.0]))  #delta * self._n_episodes
+            # A = np.array([[np.cos(0.005), -np.sin(0.005)],
+            #               [np.sin(0.005), np.cos(0.005)]], 
+            #              dtype=np.float32)
+            A = self._session.run('latent/dynamics_prior:0')
+            self._current_latent = np.linalg.matrix_power(A, self._n_episodes).dot(np.array([0.1, 0.0]))
         else:
             self._current_observation = next_observation
 
