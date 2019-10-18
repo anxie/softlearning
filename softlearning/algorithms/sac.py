@@ -269,7 +269,7 @@ class SAC(RLAlgorithm):
 
         self._training_ops.update({'policy_train_op': policy_train_op})
 
-    def _init_encoder_update(self, latent_dim=2, hidden_layer_sizes=(32, 32)):
+    def _init_encoder_update(self, latent_dim=2, hidden_layer_sizes=(64, 64)):
         observations = {
             name: self._placeholders['observations'][name]
             for name in self._policy.observation_keys if name != 'meta_time'
@@ -305,36 +305,36 @@ class SAC(RLAlgorithm):
             #                              [latent_dim, latent_dim],
             #                              initializer=tf.random_normal_initializer(),
             #                              dtype=tf.float32)
-            cos_prior = tf.get_variable('cos_prior', initializer=tf.constant(0.9))
-            sin_prior = tf.sqrt(1 - tf.square(cos_prior))
-            self.dynamics_prior = tf.stack([[cos_prior, -sin_prior], [sin_prior, cos_prior]],
-                name='dynamics_prior')
 
-        ts = tf.squeeze(tf.cast(self._placeholders['observations']['meta_time'], tf.int64))
+            # cos_prior = tf.get_variable('cos_prior', initializer=tf.constant(0.9))
+            # sin_prior = tf.sqrt(1 - tf.square(cos_prior))
+            # self.dynamics_prior = tf.stack([[cos_prior, -sin_prior], [sin_prior, cos_prior]],
+            #     name='dynamics_prior')
 
-        curr_A = tf.eye(latent_dim)
-        As = [tf.eye(latent_dim)]
-        for _ in range(1, 4000):
-            curr_A = tf.linalg.matmul(curr_A, self.dynamics_prior)
-            As.append(curr_A)
-        As = tf.stack(As)
+            self.dynamics_prior = tf.get_variable('dynamics_prior',
+                                                  [latent_dim],
+                                                  initializer=tf.random_normal_initializer())
 
-        # self.dynamics_prior = np.array([[np.cos(0.005), -np.sin(0.005)],
-        #                                 [np.sin(0.005), np.cos(0.005)]], 
-        #                                dtype=np.float32)
-        # curr_A = np.eye(latent_dim)
-        # As = [curr_A]
+        # ts = tf.squeeze(tf.cast(self._placeholders['observations']['meta_time'], tf.int64))
+
+        # curr_A = tf.eye(latent_dim)
+        # As = [tf.eye(latent_dim)]
         # for _ in range(1, 4000):
-        #     curr_A = np.matmul(curr_A, self.dynamics_prior)
+        #     curr_A = tf.linalg.matmul(curr_A, self.dynamics_prior)
         #     As.append(curr_A)
-        # As = np.array(As, dtype=np.float32)
+        # As = tf.stack(As)
 
-        At = tf.gather(As, ts, axis=0)
-        z0 = tf.tile(np.expand_dims(np.array([0.1, 0.0], dtype=np.float32), axis=0), [tf.shape(ts)[0], 1])
-        latent_prior = tf.linalg.matvec(At, z0)
+        # At = tf.gather(As, ts, axis=0)
+        # z0 = tf.tile(np.expand_dims(np.array([0.1, 0.0], dtype=np.float32), axis=0), [tf.shape(ts)[0], 1])
+        # latent_prior = tf.linalg.matvec(At, z0)
 
-        tiled_dynamics_prior = tf.tile(tf.expand_dims(self.dynamics_prior, axis=0), [tf.shape(ts)[0], 1, 1])
-        self.next_latents = tf.linalg.matvec(tiled_dynamics_prior, self.latents)
+        # tiled_dynamics_prior = tf.tile(tf.expand_dims(self.dynamics_prior, axis=0), [tf.shape(ts)[0], 1, 1])
+        # self.next_latents = tf.linalg.matvec(tiled_dynamics_prior, self.latents)
+
+        ts = tf.cast(self._placeholders['observations']['meta_time'], tf.float32)
+        tiled_dynamics_prior = tf.tile(tf.expand_dims(self.dynamics_prior, axis=0), [tf.shape(ts)[0], 1])
+        latent_prior = tiled_dynamics_prior * ts
+        self.next_latents = self.latents + self.dynamics_prior
 
         # encoder_kl_losses = -log_vars + 0.5 * (tf.square(tf.exp(log_vars)) + tf.square(means - latent_prior))
         encoder_kl_losses = tf.square(means - latent_prior)
@@ -347,7 +347,7 @@ class SAC(RLAlgorithm):
 
         encoder_train_op = self._encoder_optimizer.minimize(
             encoder_loss,
-            var_list=self.encoder_net.trainable_variables + [cos_prior])
+            var_list=self.encoder_net.trainable_variables + [self.dynamics_prior])
 
         self._training_ops.update({'encoder_train_op': encoder_train_op})
 
@@ -435,7 +435,8 @@ class SAC(RLAlgorithm):
         A = self._session.run(self.dynamics_prior)
         inputs = flatten_input_structure({
             **observations,
-            'env_latents': np.array([np.linalg.matrix_power(A, t).dot(np.array([0.1, 0.0])) for t in ts])
+            # 'env_latents': np.array([np.linalg.matrix_power(A, t).dot(np.array([0.1, 0.0])) for t in ts])
+            'env_latents': np.array([A * t for t in ts])
         })
 
         diagnostics.update(OrderedDict([

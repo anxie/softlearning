@@ -19,7 +19,7 @@ class SimpleSampler(BaseSampler):
         self._max_path_return = -np.inf
         self._n_episodes = 0
         self._current_observation = None
-        self._current_latent = np.array([0.1,0.0]) #np.zeros(2)
+        self._current_latent = np.zeros(2)
         self._total_samples = 0
 
     @property
@@ -101,11 +101,9 @@ class SimpleSampler(BaseSampler):
             self._current_path = defaultdict(list)
 
             self._n_episodes += 1
-            # A = np.array([[np.cos(0.005), -np.sin(0.005)],
-            #               [np.sin(0.005), np.cos(0.005)]], 
-            #              dtype=np.float32)
             A = self._session.run('latent/dynamics_prior:0')
-            self._current_latent = np.linalg.matrix_power(A, self._n_episodes).dot(np.array([0.1, 0.0]))
+            # self._current_latent = np.linalg.matrix_power(A, self._n_episodes).dot(np.array([0.1, 0.0]))
+            self.current_latent = A * self._n_episodes
         else:
             self._current_observation = next_observation
 
