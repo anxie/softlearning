@@ -295,10 +295,10 @@ class SAC(RLAlgorithm):
 
         # self.latents = means + tf.random.normal(shape=tf.shape(means)) * tf.exp(log_vars)
 
-        self.encoder_net = feedforward_model(
-            hidden_layer_sizes=hidden_layer_sizes,
-            output_size=latent_dim)
-        self.latents = means = self.encoder_net(encoder_inputs)
+        # self.encoder_net = feedforward_model(
+        #     hidden_layer_sizes=hidden_layer_sizes,
+        #     output_size=latent_dim)
+        # self.latents = means = self.encoder_net(encoder_inputs)
 
         with tf.variable_scope('latent'):
             # self.dynamics_prior = tf.get_variable('dynamics_prior',
@@ -307,49 +307,41 @@ class SAC(RLAlgorithm):
             #                              dtype=tf.float32)
 
             # cos_prior = tf.get_variable('cos_prior', initializer=tf.constant(0.9))
-            # sin_prior = tf.sqrt(1 - tf.square(cos_prior))
-            # self.dynamics_prior = tf.stack([[cos_prior, -sin_prior], [sin_prior, cos_prior]],
-            #     name='dynamics_prior')
+            cos_prior = tf.cast(tf.constant(np.cos(0.5)), tf.float32)
+            sin_prior = tf.sqrt(1.0 - tf.square(cos_prior))
+            self.dynamics_prior = tf.stack([[cos_prior, -sin_prior], [sin_prior, cos_prior]],
+                name='dynamics_prior')
 
-            self.dynamics_prior = tf.get_variable('dynamics_prior',
-                                                  [latent_dim],
-                                                  initializer=tf.random_normal_initializer())
+        ts = tf.squeeze(tf.cast(self._placeholders['observations']['meta_time'], tf.int64))
 
-        # ts = tf.squeeze(tf.cast(self._placeholders['observations']['meta_time'], tf.int64))
+        curr_A = tf.eye(latent_dim)
+        As = [tf.eye(latent_dim)]
+        for _ in range(1, 4000):
+            curr_A = tf.linalg.matmul(curr_A, self.dynamics_prior)
+            As.append(curr_A)
+        As = tf.stack(As)
 
-        # curr_A = tf.eye(latent_dim)
-        # As = [tf.eye(latent_dim)]
-        # for _ in range(1, 4000):
-        #     curr_A = tf.linalg.matmul(curr_A, self.dynamics_prior)
-        #     As.append(curr_A)
-        # As = tf.stack(As)
-
-        # At = tf.gather(As, ts, axis=0)
-        # z0 = tf.tile(np.expand_dims(np.array([0.1, 0.0], dtype=np.float32), axis=0), [tf.shape(ts)[0], 1])
-        # latent_prior = tf.linalg.matvec(At, z0)
+        At = tf.gather(As, ts, axis=0)
+        z0 = tf.tile(np.expand_dims(np.array([0.1, 0.0], dtype=np.float32), axis=0), [tf.shape(ts)[0], 1])
+        self.latents = latent_prior = tf.linalg.matvec(At, z0)
 
         # tiled_dynamics_prior = tf.tile(tf.expand_dims(self.dynamics_prior, axis=0), [tf.shape(ts)[0], 1, 1])
-        # self.next_latents = tf.linalg.matvec(tiled_dynamics_prior, self.latents)
-
-        ts = tf.cast(self._placeholders['observations']['meta_time'], tf.float32)
-        tiled_dynamics_prior = tf.tile(tf.expand_dims(self.dynamics_prior, axis=0), [tf.shape(ts)[0], 1])
-        latent_prior = tiled_dynamics_prior * ts
-        self.next_latents = self.latents + self.dynamics_prior
+        self.next_latents = self.latents
 
         # encoder_kl_losses = -log_vars + 0.5 * (tf.square(tf.exp(log_vars)) + tf.square(means - latent_prior))
-        encoder_kl_losses = tf.square(means - latent_prior)
-        self._encoder_losses = encoder_kl_losses
-        encoder_loss = tf.reduce_mean(encoder_kl_losses)
+        # encoder_kl_losses = tf.square(means - latent_prior)
+        # self._encoder_losses = encoder_kl_losses
+        # encoder_loss = tf.reduce_mean(encoder_kl_losses)
 
-        self._encoder_optimizer = tf.compat.v1.train.AdamOptimizer(
-            learning_rate=self._encoder_lr,
-            name="encoder_optimizer")
+        # self._encoder_optimizer = tf.compat.v1.train.AdamOptimizer(
+        #     learning_rate=self._encoder_lr,
+        #     name="encoder_optimizer")
 
-        encoder_train_op = self._encoder_optimizer.minimize(
-            encoder_loss,
-            var_list=self.encoder_net.trainable_variables + [self.dynamics_prior])
+        # encoder_train_op = self._encoder_optimizer.minimize(
+        #     encoder_loss,
+        #     var_list=self.encoder_net.trainable_variables) #+ [cos_prior])
 
-        self._training_ops.update({'encoder_train_op': encoder_train_op})
+        # self._training_ops.update({'encoder_train_op': encoder_train_op})
 
     def _init_diagnostics_ops(self):
         diagnosables = OrderedDict((
@@ -357,7 +349,7 @@ class SAC(RLAlgorithm):
             ('Q_loss', self._Q_losses),
             ('policy_loss', self._policy_losses),
             ('alpha', self._alpha),
-            ('encoder_loss', self._encoder_losses),
+            # ('encoder_loss', self._encoder_losses),
         ))
 
         diagnostic_metrics = OrderedDict((
@@ -435,8 +427,7 @@ class SAC(RLAlgorithm):
         A = self._session.run(self.dynamics_prior)
         inputs = flatten_input_structure({
             **observations,
-            # 'env_latents': np.array([np.linalg.matrix_power(A, t).dot(np.array([0.1, 0.0])) for t in ts])
-            'env_latents': np.array([A * t for t in ts])
+            'env_latents': np.array([np.linalg.matrix_power(A, t).dot(np.array([0.1, 0.0])) for t in ts])
         })
 
         diagnostics.update(OrderedDict([
@@ -446,7 +437,8 @@ class SAC(RLAlgorithm):
         ]))
 
         diagnostics.update(OrderedDict([
-            ('dynamics_prior', A)
+            ('dynamics_prior', A[0,0]),
+            # ('env_latents', np.array([np.linalg.matrix_power(A, t).dot(np.array([0.1, 0.0])) for t in ts])),
         ]))
 
         if self._plotter:
