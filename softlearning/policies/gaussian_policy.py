@@ -30,7 +30,12 @@ class GaussianPolicy(LatentSpacePolicy):
 
         if 'meta_time' in input_shapes:
             input_shapes.pop('meta_time')
-            input_shapes['env_latents'] = tf.TensorShape(2)
+            preprocessors.pop('meta_time')
+        if 'desired_goal' in input_shapes:
+            input_shapes.pop('desired_goal')
+            preprocessors.pop('desired_goal')
+        input_shapes['env_latents'] = tf.TensorShape(2)
+        preprocessors['env_latents'] = None
         self._input_shapes = input_shapes
         self._output_shape = output_shape
         self._squash = squash

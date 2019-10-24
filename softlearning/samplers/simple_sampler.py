@@ -19,14 +19,14 @@ class SimpleSampler(BaseSampler):
         self._max_path_return = -np.inf
         self._n_episodes = 0
         self._current_observation = None
-        self._current_latent = np.array([0.1, 0.0]) #np.zeros(2)
+        self._current_latent = np.array([0.1, 0.1]) #np.zeros(2)
         self._total_samples = 0
 
     @property
     def _policy_input(self):
         observation = {
             key: self._current_observation[key][None, ...]
-            for key in self.policy.observation_keys if key != 'meta_time'
+            for key in self.policy.observation_keys if key not in ['meta_time', 'desired_goal']
         }
         policy_inputs = flatten_input_structure({
             **observation,
@@ -101,8 +101,10 @@ class SimpleSampler(BaseSampler):
             self._current_path = defaultdict(list)
 
             self._n_episodes += 1
-            A = self._session.run('latent/dynamics_prior:0')
-            self._current_latent = np.linalg.matrix_power(A, self._n_episodes).dot(np.array([0.1, 0.0]))
+            # A = self._session.run('latent/dynamics_prior:0')
+            # self._current_latent = np.linalg.matrix_power(A, self._n_episodes).dot(np.array([0.1, 0.0]))
+            latents = self._session.run('prev_q_map:0')
+            self._current_latent = latents[self._n_episodes+1]
         else:
             self._current_observation = next_observation
 

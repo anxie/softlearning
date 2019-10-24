@@ -53,3 +53,6 @@ class SimpleReplayPool(FlexibleReplayPool):
 
         super(SimpleReplayPool, self).__init__(
             *args, fields=fields, **kwargs)
+
+    def terminate_episode(self):
+        pass
