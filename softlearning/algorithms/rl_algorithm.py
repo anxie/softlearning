@@ -149,8 +149,16 @@ class RLAlgorithm(Checkpointable):
                 shape=(None, 1),
                 name='terminals',
             ),
+            'meta_times': tf.compat.v1.placeholder(
+                tf.int64,
+                shape=(None, 1),
+                name='meta_times',
+            ),
             'iteration': tf.compat.v1.placeholder(
                 tf.int64, shape=(), name='iteration',
+            ),
+            'prev_latents': tf.compat.v1.placeholder(
+                tf.float32, shape=(None, 2), name='prev_latents',
             ),
         }
 

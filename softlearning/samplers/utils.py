@@ -82,7 +82,7 @@ def rollout(env,
 
     t = 0
     for t in range(path_length):
-        observation, reward, terminal, info = sampler.sample()
+        observation, reward, terminal, meta_time, info = sampler.sample()
         for key, value in info.items():
             infos[key].append(value)
 

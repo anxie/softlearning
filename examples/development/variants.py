@@ -216,7 +216,7 @@ ENVIRONMENT_PARAMS_PER_UNIVERSE_DOMAIN_TASK = {
         'Point2DEnv': {
             'Default-v0': {
                 # 'observation_keys': ('observation', 'desired_goal'),
-                'observation_keys': ('observation', 'meta_time'),
+                'observation_keys': ('observation',),
             },
             'Wall-v0': {
                 'observation_keys': ('observation', 'desired_goal'),

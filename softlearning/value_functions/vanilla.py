@@ -12,12 +12,6 @@ def create_feedforward_Q_function(input_shapes,
                                   observation_keys=None,
                                   name='feedforward_Q',
                                   **kwargs):
-    if 'meta_time' in input_shapes['observations'].keys():
-        input_shapes['observations'].pop('meta_time')
-        preprocessors['observations'].pop('meta_time')
-    if 'desired_goal' in input_shapes['observations'].keys():
-        input_shapes['observations'].pop('desired_goal')
-        preprocessors['observations'].pop('desired_goal')
     input_shapes['observations']['env_latents'] = tf.TensorShape(2)
     preprocessors['observations']['env_latents'] = None
     inputs_flat = create_inputs(input_shapes)

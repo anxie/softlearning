@@ -151,7 +151,7 @@ def add_ray_tune_args(parser):
     parser.add_argument(
         '--server-port',
         type=int,
-        default=4321,
+        default=4322,
         help=tune_help_string("Port number for launching TuneServer."))
 
     return parser

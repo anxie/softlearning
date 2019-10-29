@@ -18,13 +18,7 @@ class UniformPolicy(BasePolicy):
         self._Serializable__initialize(locals())
 
         super(UniformPolicy, self).__init__(*args, **kwargs)
-
-        if 'meta_time' in input_shapes:
-            input_shapes.pop('meta_time')
-            preprocessors.pop('meta_time')
-        if 'desired_goal' in input_shapes:
-            input_shapes.pop('desired_goal')
-            preprocessors.pop('desired_goal')
+        
         input_shapes['env_latents'] = tf.TensorShape(2)
         preprocessors['env_latents'] = None
         inputs_flat = create_inputs(input_shapes)

@@ -19,14 +19,14 @@ class SimpleSampler(BaseSampler):
         self._max_path_return = -np.inf
         self._n_episodes = 0
         self._current_observation = None
-        self._current_latent = np.array([0.1, 0.1]) #np.zeros(2)
+        self._current_latent = np.array([0.1, 0.0])
         self._total_samples = 0
 
     @property
     def _policy_input(self):
         observation = {
             key: self._current_observation[key][None, ...]
-            for key in self.policy.observation_keys if key not in ['meta_time', 'desired_goal']
+            for key in self.policy.observation_keys
         }
         policy_inputs = flatten_input_structure({
             **observation,
@@ -40,6 +40,7 @@ class SimpleSampler(BaseSampler):
                         reward,
                         terminal,
                         next_observation,
+                        meta_time,
                         info):
         processed_observation = {
             'observations': observation,
@@ -47,6 +48,7 @@ class SimpleSampler(BaseSampler):
             'rewards': [reward],
             'terminals': [terminal],
             'next_observations': next_observation,
+            'meta_times': [meta_time],
             'infos': info,
         }
 
@@ -59,6 +61,7 @@ class SimpleSampler(BaseSampler):
         action = self.policy.actions_np(self._policy_input)[0]
 
         next_observation, reward, terminal, info = self.env.step(action)
+        meta_time = self._n_episodes
         self._path_length += 1
         self._path_return += reward
         self._total_samples += 1
@@ -69,6 +72,7 @@ class SimpleSampler(BaseSampler):
             reward=reward,
             terminal=terminal,
             next_observation=next_observation,
+            meta_time=self._n_episodes,
             info=info,
         )
 
@@ -101,14 +105,13 @@ class SimpleSampler(BaseSampler):
             self._current_path = defaultdict(list)
 
             self._n_episodes += 1
-            # A = self._session.run('latent/dynamics_prior:0')
-            # self._current_latent = np.linalg.matrix_power(A, self._n_episodes).dot(np.array([0.1, 0.0]))
-            latents = self._session.run('prev_q_map:0')
-            self._current_latent = latents[self._n_episodes+1]
+            A = self._session.run('latent/dynamics_prior:0')
+            # latents = self._session.run('latent/latent_priors:0')
+            self._current_latent = np.dot(A, self._current_latent) #latents[self._n_episodes]
         else:
             self._current_observation = next_observation
 
-        return next_observation, reward, terminal, info
+        return next_observation, reward, terminal, meta_time, info
 
     def random_batch(self, batch_size=None, **kwargs):
         batch_size = batch_size or self._batch_size

@@ -48,11 +48,12 @@ class SimpleReplayPool(FlexibleReplayPool):
                 name='terminals',
                 dtype='bool',
                 shape=(1, )),
+            'meta_times': Field(
+                name='meta_times',
+                dtype='int64',
+                shape=(1, )),
             **extra_fields
         }
 
         super(SimpleReplayPool, self).__init__(
             *args, fields=fields, **kwargs)
-
-    def terminate_episode(self):
-        pass
